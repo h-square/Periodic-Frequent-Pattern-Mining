@@ -1,1 +1,1 @@
-# Periodic-Frequent-Pattern-Growth
+# Periodic-Frequent-Pattern-Mining
