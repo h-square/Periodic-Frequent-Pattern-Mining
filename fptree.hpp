@@ -35,8 +35,12 @@ struct FPTree {
     const int maximum_periodicity;
     vector<pair<Item,int>> items_with_frequency;
 
+    //serial constructor
     FPTree(const std::vector<int>, const std::vector<Transaction>&, const int, const int);
-
+    //parallel constructor
+    FPTree(const std::vector<int>, const std::vector<Transaction>&, const int, const int, const int);
+    
+    FPTree(const int, const int);
     bool empty() const;
 };
 

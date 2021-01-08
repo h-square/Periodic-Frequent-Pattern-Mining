@@ -1,14 +1,20 @@
+/*
+    Author: Rag Patel, Husain Hirani
+*/
+
 #include <cassert>
 #include <cstdlib>
 #include <iostream>
+#include <cstdint>
 #include <set>
+#include <map>
 #include <vector>
 #include <algorithm>
-#include <cstdint>
 #include <utility>
-#include <bits/stdc++.h>
 #include <fstream>
+#include <sstream>
 #include <omp.h>
+#include<sys/time.h>
 
 #include "fptree.hpp"
 
@@ -21,18 +27,24 @@ FPNode::FPNode(const Item& item, const std::shared_ptr<FPNode>& parent) :
 {
 }
 
-FPTree::FPTree(const vector<int> tids,const std::vector<Transaction>& transactions, const int minimum_support_threshold, const int maximum_periodicity) :
-    root( std::make_shared<FPNode>( Item{}, nullptr ) ), header_table(),
-    minimum_support_threshold( minimum_support_threshold ),
-    maximum_periodicity(maximum_periodicity)
-{
-    int max_threads = 2;
+FPTree::FPTree(const vector<int> tids, const std::vector<Transaction>& transactions, const int minimum_support_threshold, const int maximum_periodicity) :
+    root( std::make_shared<FPNode>( Item{}, nullptr ) ), header_table(), minimum_support_threshold( minimum_support_threshold ), maximum_periodicity(maximum_periodicity)
+{}
+
+FPTree::FPTree(const int minimum_support_threshold, const int maximum_periodicity) :
+    root( std::make_shared<FPNode>( Item{}, nullptr ) ), header_table(), minimum_support_threshold( minimum_support_threshold ), maximum_periodicity(maximum_periodicity) 
+{}
+
+FPTree::FPTree(const vector<int> tids,const std::vector<Transaction>& transactions, const int minimum_support_threshold, const int maximum_periodicity, const int max_threads) :
+    root( std::make_shared<FPNode>( Item{}, nullptr ) ), header_table(), minimum_support_threshold( minimum_support_threshold ), maximum_periodicity(maximum_periodicity)
+    {
     omp_set_num_threads(max_threads);
     int number_of_transactions = tids.size();
     vector<map<Item, int>> partial_supports(max_threads);
     vector<map<Item, set<int>>> partial_tid_list(max_threads);
     set<Item> set_items;
 
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //distribute the TDB 
     int i=0;
     #pragma omp parallel default(shared) private(i)
@@ -67,8 +79,8 @@ FPTree::FPTree(const vector<int> tids,const std::vector<Transaction>& transactio
     vector<Item> items(set_items.begin(),set_items.end());
     set<Item> set_fitems;
     
-    //compute partial-supports and partial tid-lists 
-    //filter with minSup
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //compute partial-supports, partial tid-lists and filter with minSup
     i=0;
     #pragma omp parallel default(shared) private(i)
     {
@@ -90,8 +102,9 @@ FPTree::FPTree(const vector<int> tids,const std::vector<Transaction>& transactio
 
     map<Item, int> frequency_by_item;
     vector<Item> fitems(set_fitems.begin(),set_fitems.end());
-        
-    //compute period and filter with maxPer
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////    
+    //compute periodicity and filter with maxPer
     i = 0;
     #pragma omp parallel default(shared) private(i)
     {
@@ -110,7 +123,7 @@ FPTree::FPTree(const vector<int> tids,const std::vector<Transaction>& transactio
         }
     }
     
-    /*
+    
     for(auto it=frequency_by_item.begin();it!=frequency_by_item.end();it++){
         cout<<it->first<<" ";
         set<int> temp = global_tid_list[it->first];
@@ -119,7 +132,7 @@ FPTree::FPTree(const vector<int> tids,const std::vector<Transaction>& transactio
         }
         cout<<endl;
     }
-    */
+    
 
     struct frequency_comparator
     {
@@ -129,6 +142,84 @@ FPTree::FPTree(const vector<int> tids,const std::vector<Transaction>& transactio
         }
     };
     std::set<std::pair<Item, int>, frequency_comparator> items_ordered_by_frequency(frequency_by_item.cbegin(), frequency_by_item.cend());
+
+    vector< FPTree > fptrees(max_threads, FPTree(minimum_support_threshold, maximum_periodicity));
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //construct partial PF-trees
+    i = 0;
+    #pragma omp parallel default(shared) private(i)
+    {
+        int thread_id = omp_get_thread_num();
+        #pragma omp for schedule(static)
+        for(i = 0; i < number_of_transactions; i++) {
+            const Transaction& transaction = transactions[i];
+            auto curr_fpnode = fptrees[thread_id].root;
+            
+            for ( const auto& pair : items_ordered_by_frequency ) {
+                const Item& item = pair.first;
+
+                //check if item is present in current transaction
+                if ( std::find( transaction.cbegin(), transaction.cend(), item ) != transaction.cend() ) {
+
+                    const auto it = std::find_if(
+                        curr_fpnode->children.cbegin(), curr_fpnode->children.cend(),  [item](const std::shared_ptr<FPNode>& fpnode) {
+                            return fpnode->item == item; 
+                    } );
+
+                    if ( it == curr_fpnode->children.cend() ) {
+                        // the child doesn't exist, create a new node
+                        const auto curr_fpnode_new_child = std::make_shared<FPNode>( item, curr_fpnode );
+
+                        // add the new node to the tree
+                        curr_fpnode->children.push_back( curr_fpnode_new_child );
+
+                        // update the node-link structure
+                        if ( header_table.count( curr_fpnode_new_child->item ) ) {
+                            auto prev_fpnode = header_table[curr_fpnode_new_child->item];
+                            while ( prev_fpnode->node_link ) { prev_fpnode = prev_fpnode->node_link; }
+                            prev_fpnode->node_link = curr_fpnode_new_child;
+                        }
+                        else {
+                            header_table[curr_fpnode_new_child->item] = curr_fpnode_new_child;
+                        }
+
+                        // advance to the next node of the current transaction
+                        curr_fpnode = curr_fpnode_new_child;
+                    }
+                    else {
+                        // the child exist, increment its frequency
+                    auto curr_fpnode_child = *it;
+                    ++curr_fpnode_child->frequency;
+
+                    // advance to the next node of the current transaction
+                    curr_fpnode = curr_fpnode_child;
+                    }
+                }            
+            }
+
+            if(curr_fpnode)
+                curr_fpnode->tid_list.insert(tids[i]);
+        }
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //merging local PF-trees
+    
+}
+
+
+
+void get_walltime_(double* wcTime) 
+{
+	struct timeval tp;
+	gettimeofday(&tp, NULL);
+	*wcTime = (double)(tp.tv_sec + tp.tv_usec/1000000.0);
+}
+
+void get_walltime(double* wcTime) 
+{
+	get_walltime_(wcTime);
 }
 
 int main(int argc, char* argv[]){
@@ -179,5 +270,6 @@ int main(int argc, char* argv[]){
     //     cout<<endl;
     // }
 
-    const FPTree fptree{ tids, transactions, min_sup, max_per };
+    //const FPTree fptree{ tids, transactions, min_sup, max_per };
+    const FPTree parallelfptree{ tids, transactions, min_sup, max_per, 2};
 }
