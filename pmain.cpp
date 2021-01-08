@@ -42,7 +42,7 @@ FPTree::FPTree(const vector<int> tids,const std::vector<Transaction>& transactio
     int number_of_transactions = tids.size();
     vector<map<Item, int>> partial_supports(max_threads);
     vector<map<Item, set<int>>> partial_tid_list(max_threads);
-    set<Item> set_items;
+    vector<set<Item>> partial_items(max_threads);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //distribute the TDB 
@@ -56,9 +56,14 @@ FPTree::FPTree(const vector<int> tids,const std::vector<Transaction>& transactio
             for(const Item& item : transaction){
                 partial_supports[thread_id][item]++;
                 partial_tid_list[thread_id][item].insert(tids[i]);
-                set_items.insert(item);
+                partial_items[thread_id].insert(item);
             }
         }
+    }
+
+    set<Item> set_items;
+    for(i = 0; i < max_threads; i++) {
+        set_items.insert(partial_items[i].begin(), partial_items[i].end());
     }
     /*
     for(int j=0;j<partial_supports.size();j++){
@@ -124,8 +129,9 @@ FPTree::FPTree(const vector<int> tids,const std::vector<Transaction>& transactio
     }
     
     
+    cout <<"Frequent-Item\n";
     for(auto it=frequency_by_item.begin();it!=frequency_by_item.end();it++){
-        cout<<it->first<<" ";
+        cout<<it->first<<" : ";
         set<int> temp = global_tid_list[it->first];
         for(int te:temp){
             cout<<te<<" ";
@@ -143,6 +149,11 @@ FPTree::FPTree(const vector<int> tids,const std::vector<Transaction>& transactio
     };
     std::set<std::pair<Item, int>, frequency_comparator> items_ordered_by_frequency(frequency_by_item.cbegin(), frequency_by_item.cend());
 
+    cout << "Ordered By Frequency: ";
+    for(auto te:items_ordered_by_frequency) {
+        cout << te.first << " ";
+    }
+    cout << endl;
     vector< std::shared_ptr<FPTree> > fptrees(max_threads, nullptr);
     for(i = 0; i < max_threads; i++) fptrees[i] = make_shared<FPTree>(minimum_support_threshold, maximum_periodicity);
 
@@ -156,7 +167,7 @@ FPTree::FPTree(const vector<int> tids,const std::vector<Transaction>& transactio
         for(i = 0; i < number_of_transactions; i++) {
             const Transaction& transaction = transactions[i];
             auto curr_fpnode = fptrees[thread_id]->root;
-            auto curr_header_table = fptrees[thread_id]->header_table;
+            auto& curr_header_table = fptrees[thread_id]->header_table;
             
             for ( const auto& pair : items_ordered_by_frequency ) {
                 const Item& item = pair.first;
@@ -196,7 +207,6 @@ FPTree::FPTree(const vector<int> tids,const std::vector<Transaction>& transactio
                     // advance to the next node of the current transaction
                     curr_fpnode = curr_fpnode_child;
                     }
-                    
                 }            
             }
 
@@ -207,7 +217,37 @@ FPTree::FPTree(const vector<int> tids,const std::vector<Transaction>& transactio
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //merging local PF-trees
-    
+    set<Item> vis;
+    for(auto it:items_ordered_by_frequency){
+        Item curr_item = it.first;
+        shared_ptr<FPNode> last_ptr=nullptr;
+        for(int j=0;j<max_threads;j++){
+            if(fptrees[j]->header_table.find(curr_item)==fptrees[j]->header_table.end()){
+                continue;
+            }
+            if(last_ptr){
+                last_ptr->node_link = fptrees[j]->header_table[curr_item];
+                last_ptr = last_ptr->node_link;
+            }
+            else{
+                last_ptr = fptrees[j]->header_table[curr_item];
+                header_table[curr_item] = fptrees[j]->header_table[curr_item];
+            }
+            if(((last_ptr->parent.lock())->parent.lock())==nullptr && vis.find(last_ptr->item)==vis.end()){
+                vis.insert(last_ptr->item);
+                root->children.push_back(last_ptr);
+                last_ptr->parent = root;
+            }
+            while(last_ptr->node_link){
+                last_ptr = last_ptr->node_link;
+                if(((last_ptr->parent.lock())->parent.lock())==nullptr && vis.find(last_ptr->item)==vis.end()){
+                    vis.insert(last_ptr->item);
+                    root->children.push_back(last_ptr);
+                    last_ptr->parent = root;
+                }
+            }
+        }
+    }
 }
 
 void get_walltime_(double* wcTime) 
