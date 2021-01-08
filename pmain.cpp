@@ -23,7 +23,7 @@
 using namespace std;
 
 FPNode::FPNode(const Item& item, const std::shared_ptr<FPNode>& parent) :
-    item( item ), frequency( 1 ), node_link( nullptr ), parent( parent ), children()
+    item( item ), frequency( 1 ), node_link( nullptr ), parent( parent ), children(), tid_list()
 {
 }
 
@@ -143,7 +143,8 @@ FPTree::FPTree(const vector<int> tids,const std::vector<Transaction>& transactio
     };
     std::set<std::pair<Item, int>, frequency_comparator> items_ordered_by_frequency(frequency_by_item.cbegin(), frequency_by_item.cend());
 
-    vector< FPTree > fptrees(max_threads, FPTree(minimum_support_threshold, maximum_periodicity));
+    vector< std::shared_ptr<FPTree> > fptrees(max_threads, nullptr);
+    for(i = 0; i < max_threads; i++) fptrees[i] = make_shared<FPTree>(minimum_support_threshold, maximum_periodicity);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //construct partial PF-trees
@@ -154,14 +155,14 @@ FPTree::FPTree(const vector<int> tids,const std::vector<Transaction>& transactio
         #pragma omp for schedule(static)
         for(i = 0; i < number_of_transactions; i++) {
             const Transaction& transaction = transactions[i];
-            auto curr_fpnode = fptrees[thread_id].root;
+            auto curr_fpnode = fptrees[thread_id]->root;
+            auto curr_header_table = fptrees[thread_id]->header_table;
             
             for ( const auto& pair : items_ordered_by_frequency ) {
                 const Item& item = pair.first;
-
                 //check if item is present in current transaction
                 if ( std::find( transaction.cbegin(), transaction.cend(), item ) != transaction.cend() ) {
-
+                    
                     const auto it = std::find_if(
                         curr_fpnode->children.cbegin(), curr_fpnode->children.cend(),  [item](const std::shared_ptr<FPNode>& fpnode) {
                             return fpnode->item == item; 
@@ -175,30 +176,31 @@ FPTree::FPTree(const vector<int> tids,const std::vector<Transaction>& transactio
                         curr_fpnode->children.push_back( curr_fpnode_new_child );
 
                         // update the node-link structure
-                        if ( header_table.count( curr_fpnode_new_child->item ) ) {
-                            auto prev_fpnode = header_table[curr_fpnode_new_child->item];
+                        if ( curr_header_table.count( curr_fpnode_new_child->item ) ) {
+                            auto prev_fpnode = curr_header_table[curr_fpnode_new_child->item];
                             while ( prev_fpnode->node_link ) { prev_fpnode = prev_fpnode->node_link; }
                             prev_fpnode->node_link = curr_fpnode_new_child;
                         }
                         else {
-                            header_table[curr_fpnode_new_child->item] = curr_fpnode_new_child;
+                            curr_header_table[curr_fpnode_new_child->item] = curr_fpnode_new_child;
                         }
 
                         // advance to the next node of the current transaction
                         curr_fpnode = curr_fpnode_new_child;
                     }
                     else {
-                        // the child exist, increment its frequency
+                    // the child exist, increment its frequency
                     auto curr_fpnode_child = *it;
                     ++curr_fpnode_child->frequency;
 
                     // advance to the next node of the current transaction
                     curr_fpnode = curr_fpnode_child;
                     }
+                    
                 }            
             }
 
-            if(curr_fpnode)
+            if(curr_fpnode != fptrees[thread_id]->root)
                 curr_fpnode->tid_list.insert(tids[i]);
         }
     }
@@ -207,8 +209,6 @@ FPTree::FPTree(const vector<int> tids,const std::vector<Transaction>& transactio
     //merging local PF-trees
     
 }
-
-
 
 void get_walltime_(double* wcTime) 
 {
