@@ -300,7 +300,38 @@ FPTree::FPTree(const vector<int> tids,const std::vector<Transaction>& transactio
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //merging local PF-trees
-    
+     //merging local PF-trees
+    set<Item> vis;
+    for(auto it:items_ordered_by_frequency){
+        Item curr_item = it.first;
+        shared_ptr<FPNode> last_ptr=nullptr;
+        for(int j=0;j<max_threads;j++){
+            if(fptrees[j]->header_table.find(curr_item)==fptrees[j]->header_table.end()){
+                continue;
+            }
+            if(last_ptr){
+                last_ptr->node_link = fptrees[j]->header_table[curr_item];
+                last_ptr = last_ptr->node_link;
+            }
+            else{
+                last_ptr = fptrees[j]->header_table[curr_item];
+                header_table[curr_item] = fptrees[j]->header_table[curr_item];
+            }
+            if(((last_ptr->parent.lock())->parent.lock())==nullptr && vis.find(last_ptr->item)==vis.end()){
+                vis.insert(last_ptr->item);
+                root->children.push_back(last_ptr);
+                last_ptr->parent = root;
+            }
+            while(last_ptr->node_link){
+                last_ptr = last_ptr->node_link;
+                if(((last_ptr->parent.lock())->parent.lock())==nullptr && vis.find(last_ptr->item)==vis.end()){
+                    vis.insert(last_ptr->item);
+                    root->children.push_back(last_ptr);
+                    last_ptr->parent = root;
+                }
+            }
+        }
+    }
 }
 
 void get_walltime_(double* wcTime) 
@@ -317,7 +348,7 @@ void get_walltime(double* wcTime)
 
 int main(int argc, char* argv[]){
 
-    if(argc!=6){
+    if(argc!=8){
         cout<<"Invalid Arguments";
         return 0;
     }
@@ -329,6 +360,8 @@ int main(int argc, char* argv[]){
     const int max_per = stoi(argv[3]);
 	const int max_threads = stoi(argv[4]);
 	const int max_runs = stoi(argv[5]);
+    const int flag = stoi(argv[6]);
+    const int ts_ = stof(argv[7]);
 
     vector<Transaction> transactions;
     int len=0;
@@ -359,18 +392,25 @@ int main(int argc, char* argv[]){
 	//serial 
 	double start, end, time;
 	double ts = 0;
-	for(int i = 0; i < max_runs; i++) {
-		get_walltime(&start);
-    	////////////////////////////////////////////////////////////
-		const FPTree fptree{ tids, transactions, min_sup, max_per };
-    	////////////////////////////////////////////////////////////
-    	get_walltime(&end);
-		time = end - start;
-		ts += time;
-	}
-	ts = ts / max_runs;
+    if(flag == 1)
+    {
+	    for(int i = 0; i < 1; i++) {
+		    get_walltime(&start);
+    	    ////////////////////////////////////////////////////////////
+		    const FPTree fptree{ tids, transactions, min_sup, max_per };
+    	    ////////////////////////////////////////////////////////////
+    	    get_walltime(&end);
+		    time = end - start;
+		    ts += time;
+	    }
+        ts = ts / 1;
+    }
+	else {
+        ts = 26.5022;
+    }
+    
 
-	for(int p = 1; p < max_threads; p = p + 2) {
+	for(int p = max_threads; p <= max_threads; p = p + 2) {
 		double tp = 0;
 		for(int i = 0; i < max_runs; i++) {
 			get_walltime(&start);
@@ -383,6 +423,6 @@ int main(int argc, char* argv[]){
 		}
 		tp = tp / max_runs;
 		double spdup = ts / tp;
-		cout << ts << ", " << p << ", " << tp << ", " << spdup; 
+		cout << ts << ", " << p << ", " << tp << ", " << spdup << endl ; 
 	}
 }

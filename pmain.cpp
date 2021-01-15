@@ -50,7 +50,7 @@ FPTree::FPTree(const vector<int> tids,const std::vector<Transaction>& transactio
     #pragma omp parallel default(shared) private(i)
     {
         int thread_id = omp_get_thread_num();
-        #pragma omp for schedule(static,1)
+        #pragma omp for schedule(static)
         for(i=0;i<number_of_transactions;i++){
             const Transaction& transaction = transactions[i];
             for(const Item& item : transaction){
@@ -60,86 +60,111 @@ FPTree::FPTree(const vector<int> tids,const std::vector<Transaction>& transactio
             }
         }
     }
-
     set<Item> set_items;
     for(i = 0; i < max_threads; i++) {
         set_items.insert(partial_items[i].begin(), partial_items[i].end());
     }
-    /*
+
+    cout << "1-itemset\n";
+    for(auto it : set_items) {
+        cout << it << " ";
+    }
+    cout << endl;
     for(int j=0;j<partial_supports.size();j++){
-         cout<<j<<endl;
+         cout<<"tid: " << j << endl;
          for(auto it=partial_tid_list[j].begin();it!=partial_tid_list[j].end();it++){
-             cout<<it->first<<" ";
              set<int> temp = it->second;
+             cout<<it->first<<" : "<< partial_supports[j][it->first] << " : ";
              for(int te:temp){
                  cout<<te<<" ";
              }
              cout<<endl;
          }
     }
-    */
 
-    map<Item, int> global_support;
-    map<Item, set<int>> global_tid_list;
-    vector<Item> items(set_items.begin(),set_items.end());
-    set<Item> set_fitems;
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    
     
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //compute partial-supports, partial tid-lists and filter with minSup
+    //compute global-supports, global tid-lists and filter with minSup
+    map<Item, int> global_supports;
+    map<Item, set<int>> global_tid_lists;
+    vector<Item> items(set_items.begin(),set_items.end()); 
+    set<Item> set_fitems;
     i=0;
     #pragma omp parallel default(shared) private(i)
     {
         int thread_id = omp_get_thread_num();
-        #pragma omp for schedule(static,1)
+        #pragma omp for schedule(static,1) collapse(1)
         for(i=0;i<items.size();i++){
+            int global_support = 0;
+            set<int> global_tid_list;
             for(int j=0;j<max_threads;j++){
-                if(partial_supports[j][items[i]]){
-                    global_support[items[i]]+=partial_supports[j][items[i]];
-                    global_tid_list[items[i]].insert(partial_tid_list[j][items[i]].begin(),partial_tid_list[j][items[i]].end());
+                if(partial_supports[j].find(items[i]) != partial_supports[j].end()) {
+                    global_support = global_support + partial_supports[j][items[i]];
+                    global_tid_list.insert(partial_tid_list[j][items[i]].begin(),partial_tid_list[j][items[i]].end());
                 }
             }
-            if(global_support[items[i]] >= minimum_support_threshold) {
-                #pragma omp critical
-                set_fitems.insert(items[i]);
+            if(global_support >= minimum_support_threshold) {
+                #pragma omp critical 
+                {
+                    set_fitems.insert(items[i]);
+                    global_supports[items[i]] = global_support;
+                    global_tid_lists[items[i]].insert(global_tid_list.begin(), global_tid_list.end()); 
+                }
             }
         }
     }
 
-    map<Item, int> frequency_by_item;
-    vector<Item> fitems(set_fitems.begin(),set_fitems.end());
+    cout << "Frequent-Items: \n";
+    for(auto it:set_fitems) {
+        cout << it << " ";
+    }
+    cout << endl;
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////    
     //compute periodicity and filter with maxPer
+    set<Item> fpitems;
+    map<Item, int> frequency_by_item;
+    vector<Item> fitems(set_fitems.begin(),set_fitems.end());
     i = 0;
     #pragma omp parallel default(shared) private(i)
     {
-        #pragma omp for schedule(static,1)
+        #pragma omp for schedule(dynamic,1)
         for(i = 0; i < fitems.size(); i++) {
             int periodicity = -1;
             int lasttid = 0;
-            for(auto it = global_tid_list[fitems[i]].begin(); it != global_tid_list[fitems[i]].end(); it++) {
+            for(auto it = global_tid_lists[fitems[i]].begin(); it != global_tid_lists[fitems[i]].end(); it++) {
                 periodicity = max(*it - lasttid, periodicity);
                 lasttid = *it;
             }
             periodicity = max(periodicity, (int)tids.size() - lasttid);
             if(periodicity <= maximum_periodicity) {
-                frequency_by_item[fitems[i]] = global_support[fitems[i]];
+                #pragma omp critical
+                {
+                    fpitems.insert(fitems[i]);
+                }
+                
             }
         }
     }
-    
-    
-    cout <<"Frequent-Item\n";
+    for(auto it : fpitems) {
+        frequency_by_item[it] = global_supports[it];
+    }
+    cout <<"Periodic-Frequent Items: \n";
     for(auto it=frequency_by_item.begin();it!=frequency_by_item.end();it++){
         cout<<it->first<<" : ";
-        set<int> temp = global_tid_list[it->first];
+        set<int> temp = global_tid_lists[it->first];
         for(int te:temp){
             cout<<te<<" ";
         }
         cout<<endl;
     }
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     
-
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //sort the frequent-items by frequency
     struct frequency_comparator
     {
         bool operator()(const std::pair<Item, uint64_t> &lhs, const std::pair<Item, uint64_t> &rhs) const
@@ -154,11 +179,12 @@ FPTree::FPTree(const vector<int> tids,const std::vector<Transaction>& transactio
         cout << te.first << " ";
     }
     cout << endl;
-    vector< std::shared_ptr<FPTree> > fptrees(max_threads, nullptr);
-    for(i = 0; i < max_threads; i++) fptrees[i] = make_shared<FPTree>(minimum_support_threshold, maximum_periodicity);
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //construct partial PF-trees
+    vector< std::shared_ptr<FPTree> > fptrees(max_threads, nullptr);
+    for(i = 0; i < max_threads; i++) fptrees[i] = make_shared<FPTree>(minimum_support_threshold, maximum_periodicity);
     i = 0;
     #pragma omp parallel default(shared) private(i)
     {
@@ -217,35 +243,45 @@ FPTree::FPTree(const vector<int> tids,const std::vector<Transaction>& transactio
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //merging local PF-trees
+    vector<Item> pfitems(items_ordered_by_frequency.size());
+    for(auto it : items_ordered_by_frequency) {
+        pfitems.push_back(it.first);
+    }
     set<Item> vis;
-    for(auto it:items_ordered_by_frequency){
-        Item curr_item = it.first;
-        shared_ptr<FPNode> last_ptr=nullptr;
-        for(int j=0;j<max_threads;j++){
-            if(fptrees[j]->header_table.find(curr_item)==fptrees[j]->header_table.end()){
-                continue;
-            }
-            if(last_ptr){
-                last_ptr->node_link = fptrees[j]->header_table[curr_item];
-                last_ptr = last_ptr->node_link;
-            }
-            else{
-                last_ptr = fptrees[j]->header_table[curr_item];
-                header_table[curr_item] = fptrees[j]->header_table[curr_item];
-            }
-            if(((last_ptr->parent.lock())->parent.lock())==nullptr && vis.find(last_ptr->item)==vis.end()){
-                vis.insert(last_ptr->item);
-                root->children.push_back(last_ptr);
-                last_ptr->parent = root;
-            }
-            while(last_ptr->node_link){
-                last_ptr = last_ptr->node_link;
+    i = 0;
+    
+    #pragma omp parallel default(shared) private(i)
+    {
+        #pragma omp for schedule(dynamic)
+        for(i = 0; i < pfitems.size(); i++) {
+            Item curr_item = pfitems[i];
+            shared_ptr<FPNode> last_ptr=nullptr;
+            for(int j=0;j<max_threads;j++){
+                if(fptrees[j]->header_table.find(curr_item)==fptrees[j]->header_table.end()){
+                    continue;
+                }
+                if(last_ptr){
+                    last_ptr->node_link = fptrees[j]->header_table[curr_item];
+                    last_ptr = last_ptr->node_link;
+                }
+                else{
+                    last_ptr = fptrees[j]->header_table[curr_item];
+                    header_table[curr_item] = fptrees[j]->header_table[curr_item];
+                }
                 if(((last_ptr->parent.lock())->parent.lock())==nullptr && vis.find(last_ptr->item)==vis.end()){
                     vis.insert(last_ptr->item);
                     root->children.push_back(last_ptr);
                     last_ptr->parent = root;
                 }
-            }
+                while(last_ptr->node_link){
+                    last_ptr = last_ptr->node_link;
+                    if(((last_ptr->parent.lock())->parent.lock())==nullptr && vis.find(last_ptr->item)==vis.end()){
+                        vis.insert(last_ptr->item);
+                        root->children.push_back(last_ptr);
+                        last_ptr->parent = root;
+                    }
+                }
+            }    
         }
     }
 }
