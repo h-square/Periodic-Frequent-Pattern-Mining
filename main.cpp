@@ -12,7 +12,7 @@
 #include "fptree.hpp"
 
 #define pb push_back
-
+int TDB_SIZE = 0;
 using namespace std;
 
 FPNode::FPNode(const Item& item, const std::shared_ptr<FPNode>& parent) :
@@ -363,9 +363,7 @@ std::set<Pattern> fptree_growth(const FPTree& fptree)
                 set<int> leaf_fpnode_tids = leaf_fpnode->tid_list;
                 auto parent = leaf_fpnode->parent.lock();
                 if(parent != nullptr){
-                    for(auto it=leaf_fpnode_tids.begin();it!=leaf_fpnode_tids.end();it++){
-                        parent->tid_list.insert(*it);
-                    }
+                    parent->tid_list.insert(leaf_fpnode_tids.begin(), leaf_fpnode_tids.end());
                 }
                 
                 leaf_fpnode = leaf_fpnode->node_link;
@@ -376,7 +374,7 @@ std::set<Pattern> fptree_growth(const FPTree& fptree)
                         break;
                     }
                 }
-            }
+            }   
         }
         return multi_path_patterns;
     }
@@ -430,7 +428,7 @@ int main(int argc, char* argv[]){
     for(int i=1;i<=len;i++){
         tids.pb(i);
     }
-
+    TDB_SIZE = len;
     // cout<<transactions.size()<<endl;
     // for(int i=0;i<transactions.size();i++){
     //     for(int j=0;j<transactions[i].size();j++){
@@ -443,7 +441,7 @@ int main(int argc, char* argv[]){
 
     const std::set<Pattern> patterns = fptree_growth( fptree );
 
-    auto it=patterns.begin();
+    /*auto it=patterns.begin();
     while(it!=patterns.end()){
         set<Item> s=(*it).first;
         auto itr=s.begin();
@@ -457,5 +455,6 @@ int main(int argc, char* argv[]){
         }
         cout<<endl;
         it++;
-    }
+    }*/
+    cout << patterns.size();
 }
