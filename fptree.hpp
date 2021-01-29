@@ -15,6 +15,7 @@ using Item = std::string;
 using Transaction = std::vector<Item>;
 using TransformedPrefixPath = std::pair<std::vector<Item>, std::set<int>>;
 using Pattern = std::pair<std::set<Item>, set<int>>;
+using onlyPattern = std::set<Item>;
 
 
 struct FPNode {
@@ -45,7 +46,7 @@ struct FPTree {
 };
 
 
-std::set<Pattern> fptree_growth(const FPTree&);
-std::set<Pattern> parallel_growth(const FPTree&, const int);
+//std::set<onlyPattern> fptree_growth(const FPTree&);
+//std::set<Pattern> parallel_growth(const FPTree&, const int);
 
 #endif  // FPTREE_HPP

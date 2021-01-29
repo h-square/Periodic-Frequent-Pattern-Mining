@@ -157,7 +157,7 @@ FPTree::FPTree(const vector<int> tids,const std::vector<Transaction>& transactio
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //distribute the TDB 
     int i=0;
-    #pragma omp parallel default(shared) private(i)
+    #pragma omp parallel default(shared) private(i) num_threads(max_threads)
     {
         int thread_id = omp_get_thread_num();
         #pragma omp for schedule(static)
@@ -202,7 +202,7 @@ FPTree::FPTree(const vector<int> tids,const std::vector<Transaction>& transactio
     vector<Item> items(set_items.begin(),set_items.end()); 
     set<Item> set_fitems;
     i=0;
-    #pragma omp parallel default(shared) private(i)
+    #pragma omp parallel default(shared) private(i) num_threads(max_threads)
     {
         int thread_id = omp_get_thread_num();
         #pragma omp for schedule(static,1) collapse(1)
@@ -239,7 +239,7 @@ FPTree::FPTree(const vector<int> tids,const std::vector<Transaction>& transactio
     map<Item, int> frequency_by_item;
     vector<Item> fitems(set_fitems.begin(),set_fitems.end());
     i = 0;
-    #pragma omp parallel default(shared) private(i)
+    #pragma omp parallel default(shared) private(i) num_threads(max_threads)
     {
         #pragma omp for schedule(dynamic,1)
         for(i = 0; i < fitems.size(); i++) {
@@ -298,7 +298,7 @@ FPTree::FPTree(const vector<int> tids,const std::vector<Transaction>& transactio
     vector< std::shared_ptr<FPTree> > fptrees(max_threads, nullptr);
     for(i = 0; i < max_threads; i++) fptrees[i] = make_shared<FPTree>(minimum_support_threshold, maximum_periodicity);
     i = 0;
-    #pragma omp parallel default(shared) private(i)
+    #pragma omp parallel default(shared) private(i) num_threads(max_threads)
     {
         int thread_id = omp_get_thread_num();
         #pragma omp for schedule(static)
@@ -406,14 +406,14 @@ bool contains_single_path(const FPTree& fptree)
     return fptree.empty() || contains_single_path( fptree.root );
 }
 
-std::set<Pattern> parallel_fptree_growth(const FPTree& fptree, const int max_threads)
+std::set<onlyPattern> parallel_fptree_growth(const FPTree& fptree, const int max_threads)
 {
     if ( fptree.empty() ) { return {}; }
 
     if ( contains_single_path( fptree ) ) {
         // generate all possible combinations of the items in the tree
 
-        std::set<Pattern> single_path_patterns;
+        std::set<onlyPattern> single_path_patterns;
 
         // for each node in the tree
         assert( fptree.root->children.size() == 1 );
@@ -424,16 +424,13 @@ std::set<Pattern> parallel_fptree_growth(const FPTree& fptree, const int max_thr
             set<int> curr_fpnode_tids = curr_fpnode->tid_list;
 
             // add a pattern formed only by the item of the current node
-            Pattern new_pattern{ { curr_fpnode_item }, curr_fpnode_tids };
+            onlyPattern new_pattern{ { curr_fpnode_item } };
             single_path_patterns.insert( new_pattern );
 
             // create a new pattern by adding the item of the current node to each pattern generated until now
-            for ( const Pattern& pattern : single_path_patterns ) {
-                Pattern new_pattern{ pattern };
-                new_pattern.first.insert( curr_fpnode_item );
-                //assert( curr_fpnode_frequency <= pattern.second );
-                new_pattern.second = curr_fpnode_tids;
-
+            for ( const onlyPattern& onlypattern : single_path_patterns ) {
+                onlyPattern new_pattern{ onlypattern };
+                new_pattern.insert( curr_fpnode_item );
                 single_path_patterns.insert( new_pattern );
             }
 
@@ -447,7 +444,7 @@ std::set<Pattern> parallel_fptree_growth(const FPTree& fptree, const int max_thr
     else {
         // generate conditional fptrees for each different item in the fptree, then join the results
 
-        std::set<Pattern> multi_path_patterns;
+        std::set<onlyPattern> multi_path_patterns;
 
         // for each item in the FP-list 
         for (int i = fptree.items_with_frequency.size() - 1; i >= 0; i-- ) {
@@ -490,19 +487,29 @@ std::set<Pattern> parallel_fptree_growth(const FPTree& fptree, const int max_thr
 
                 // add the same transaction transformed_prefix_path_items_frequency times
                 for ( auto it = transformed_prefix_path_items_tids.begin(); it != transformed_prefix_path_items_tids.end(); it++ ) {
-                    conditional_fptree_tids.push_back(*it);
+                    conditional_fptree_tids.pb(*it);
                     conditional_fptree_transactions.push_back( transaction );
                 }
             }
+            
+            // int j=0;
+            // for(auto transaction:conditional_fptree_transactions){
+            //     for(Item it:transaction){
+            //         cout<<it<<" ";
+            //     }
+            //     cout<<" Tids "<<conditional_fptree_tids[j++]<<endl;
+            // }
+            // break;
+            
             
             // build the conditional fptree relative to the current item with the transactions just generated
             const FPTree conditional_fptree( conditional_fptree_tids, conditional_fptree_transactions, fptree.minimum_support_threshold, fptree.maximum_periodicity, max_threads);
             // call recursively fptree_growth on the conditional fptree (empty fptree: no patterns)
 
-            std::set<Pattern> conditional_patterns = parallel_fptree_growth( conditional_fptree, max_threads);
+            std::set<onlyPattern> conditional_patterns = parallel_fptree_growth( conditional_fptree, max_threads);
 
             // construct patterns relative to the current item using both the current item and the conditional patterns
-            std::set<Pattern> curr_item_patterns;
+            std::set<onlyPattern> curr_item_patterns;
 
             // the first pattern is made only by the current item
             // compute the frequency of this pattern by summing the frequency of the nodes which have the same item (follow the node links)
@@ -515,16 +522,13 @@ std::set<Pattern> parallel_fptree_growth(const FPTree& fptree, const int max_thr
                 fpnode = fpnode->node_link;
             }
             // add the pattern as a result
-            Pattern pattern{ { curr_item }, curr_item_tids };
-            curr_item_patterns.insert( pattern );
+            onlyPattern onlypattern{ {curr_item} };
+            curr_item_patterns.insert( onlypattern );
 
             // the next patterns are generated by adding the current item to each conditional pattern
-            for ( const Pattern& pattern : conditional_patterns ) {
-                Pattern new_pattern{ pattern };
-                new_pattern.first.insert( curr_item );
-                //assert( curr_item_frequency >= pattern.second );
-                new_pattern.second = pattern.second;
-
+            for ( const onlyPattern& onlypattern : conditional_patterns ) {
+                onlyPattern new_pattern{ onlypattern };
+                new_pattern.insert( curr_item );
                 curr_item_patterns.insert( { new_pattern } );
             }
 
@@ -731,7 +735,7 @@ void get_walltime(double* wcTime)
 
 int main(int argc, char* argv[]){
 
-    if(argc!=7){
+    if(argc!=8){
         cout<<"Invalid Arguments";
         return 0;
     }
@@ -739,11 +743,13 @@ int main(int argc, char* argv[]){
     ifstream fin;
     fin.open(argv[1]);
     
-    const int min_sup = stoi(argv[2]);
-    const int max_per = stoi(argv[3]);
+    const double min_sup_percentage = double(stof(argv[2]));
+    const double max_per_percentage = double(stof(argv[3]));
 	const int max_threads = stoi(argv[4]);
 	const int max_runs_serial = stoi(argv[5]);
     const int max_runs_parallel = stoi(argv[6]);
+    const int start_thread = stoi(argv[7]);
+
     int flag = 1;
     vector<Transaction> transactions;
     int len=0;
@@ -772,11 +778,18 @@ int main(int argc, char* argv[]){
         tids.push_back(i);
     }
     TDB_SIZE = len;
-
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////
+    int min_sup = int(0.01 * min_sup_percentage * len);
+    int max_per = int(0.01 * max_per_percentage * len);
+    cout << "TDB length: " << len << endl;
+    cout << "minSup: " << min_sup_percentage << "%, " << min_sup << endl;
+    cout << "maxPer: " << max_per_percentage << "%, " << max_per << endl;
+    cout << "available threads: " << omp_get_max_threads() << endl;
     ///////////////////////////////////////////////////////////////////////////////////////////////////////
 	//serial 
 	double start, end, time;
 	double ts = 0;
+    int pfpattern_serial = 0;
     if(flag == 1)
     {
 	    for(int i = 0; i < max_runs_serial; i++) {
@@ -788,8 +801,9 @@ int main(int argc, char* argv[]){
     	    get_walltime(&end);
 		    time = end - start;
 		    ts += time;
+            pfpattern_serial = patterns.size();
 	    }
-        ts = ts / 1;
+        ts = ts / max_runs_serial;
     }
 	else {
         ts = 0;
@@ -797,38 +811,54 @@ int main(int argc, char* argv[]){
     /////////////////////////////////////////////////////////////////////////////////////////////////////
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////
-    vector<int> thds(max_threads);
-    vector<double> tps(max_threads);
-    vector<double> sus(max_threads);
-	for(int p = 1; p <= max_threads; p = p + 1) {
+    vector<int> thds;
+    vector<double> tps;
+    vector<double> sus;
+    vector<double> efs;
+	for(int p = start_thread; p <= max_threads; p = p + 1) {
 		double tp = 0;
 		for(int i = 0; i < max_runs_parallel; i++) {
 			get_walltime(&start);
 			////////////////////////////////////////////////////////////
 			const FPTree parallelfptree{ tids, transactions, min_sup, max_per, p};
-            const std::set<Pattern> patterns = parallel_fptree_growth( parallelfptree, p);
+            const std::set<onlyPattern> patterns = parallel_fptree_growth( parallelfptree, p);
 			////////////////////////////////////////////////////////////
 			get_walltime(&end);
 			time = end - start;
 			tp += time;
+            if(pfpattern_serial != patterns.size()) {
+                cout << "#PFPs mismatch!!";
+                return 0;
+            }
 		}
-		tp = tp / max_runs_parallel;
+		tp = tp / (double)max_runs_parallel;
 		double spdup = ts / tp;
+        double eff = spdup / (double)p;
         thds.push_back(p);
         tps.push_back(tp);
         sus.push_back(spdup);
-		cout << ts << ", " << p << ", " << tp << ", " << spdup << endl ; 
+        efs.push_back(eff);
+        printf("%3.6lf %2d %3.6lf %3.6lf %3.6lf \n", ts, p, tp, spdup, eff); 
 	}
-    for(int i = 0; i < max_threads; i++) {
+    cout << "#pfps: " << pfpattern_serial << endl << "Threads=[";
+    for(int i = 0; i < thds.size(); i++) {
         cout << thds[i] << ", ";
     }
-    cout << endl;
-    for(int i = 0; i < max_threads; i++) {
+    cout << "]" << endl << "ts= [";
+    for(int i = 0; i < thds.size(); i++) {
+        cout << ts << ", ";
+    }
+    cout << "]" << endl << "tp= [";
+    for(int i = 0; i < tps.size(); i++) {
         cout << tps[i] << ", ";
     }
-    cout << endl;
-    for(int i = 0; i < max_threads; i++) {
+    cout << "] " << endl << "Speedup= [";
+    for(int i = 0; i < sus.size(); i++) {
         cout << sus[i] << ", ";
     }
-    cout << endl;
+    cout << "] " << endl << "Eff= [";
+    for(int i = 0; i < efs.size(); i++) {
+        cout << efs[i] << ", ";
+    }
+    cout << "]" << endl;
 }
