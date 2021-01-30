@@ -18,7 +18,6 @@
 
 #include "fptree.hpp"
 int TDB_SIZE = 0;
-#define pb push_back
 
 using namespace std;
 
@@ -87,7 +86,7 @@ FPTree::FPTree(const vector<int> tids, const std::vector<Transaction>& transacti
 
     for(const auto& pair : items_ordered_by_frequency){
         const Item& item = pair.first;
-        items_with_frequency.pb(pair);
+        items_with_frequency.push_back(pair);
     }
 
     // start tree construction
@@ -493,7 +492,7 @@ std::set<Pattern> parallel_fptree_growth(const FPTree& fptree, const int max_thr
 
                 // add the same transaction transformed_prefix_path_items_frequency times
                 for ( auto it = transformed_prefix_path_items_tids.begin(); it != transformed_prefix_path_items_tids.end(); it++ ) {
-                    conditional_fptree_tids.pb(*it);
+                    conditional_fptree_tids.push_back(*it);
                     conditional_fptree_transactions.push_back( transaction );
                 }
             }
@@ -615,7 +614,7 @@ int main(int argc, char* argv[]){
     len-=1;
     vector<int> tids;
     for(int i=1;i<=len;i++){
-        tids.pb(i);
+        tids.push_back(i);
     }
 
     //const FPTree fptree{ tids, transactions, min_sup, max_per };
