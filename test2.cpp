@@ -18,11 +18,24 @@
 
 #include "fptree.hpp"
 int TDB_SIZE = 0;
+double TOTAL_TIME_FPTREE = 0;
 using namespace std;
 
 FPNode::FPNode(const Item& item, const std::shared_ptr<FPNode>& parent) :
     item( item ), frequency( 1 ), node_link( nullptr ), parent( parent ), children(), tid_list()
 {}
+
+void get_walltime_(double* wcTime) 
+{
+	struct timeval tp;
+	gettimeofday(&tp, NULL);
+	*wcTime = (double)(tp.tv_sec + tp.tv_usec/1000000.0);
+}
+
+void get_walltime(double* wcTime) 
+{
+	get_walltime_(wcTime);
+}
 
 FPTree::FPTree(const vector<int> tids, const std::vector<Transaction>& transactions, const int minimum_support_threshold, const int maximum_periodicity) :
     root( std::make_shared<FPNode>( Item{}, nullptr ) ), header_table(), minimum_support_threshold( minimum_support_threshold ), maximum_periodicity(maximum_periodicity)
@@ -174,24 +187,6 @@ FPTree::FPTree(const vector<int> tids,const std::vector<Transaction>& transactio
     for(i = 0; i < max_threads; i++) {
         set_items.insert(partial_items[i].begin(), partial_items[i].end());
     }
-
-    // cout << "1-itemset\n";
-    // for(auto it : set_items) {
-    //     cout << it << " ";
-    // }
-    // cout << endl;
-    // for(int j=0;j<partial_supports.size();j++){
-    //      cout<<"tid: " << j << endl;
-    //      for(auto it=partial_tid_list[j].begin();it!=partial_tid_list[j].end();it++){
-    //          set<int> temp = it->second;
-    //          cout<<it->first<<" : "<< partial_supports[j][it->first] << " : ";
-    //          for(int te:temp){
-    //              cout<<te<<" ";
-    //          }
-    //          cout<<endl;
-    //      }
-    // }
-
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     
     
@@ -225,12 +220,6 @@ FPTree::FPTree(const vector<int> tids,const std::vector<Transaction>& transactio
             }
         }
     }
-
-    // cout << "Frequent-Items: \n";
-    // for(auto it:set_fitems) {
-    //     cout << it << " ";
-    // }
-    // cout << endl;
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////    
@@ -262,15 +251,6 @@ FPTree::FPTree(const vector<int> tids,const std::vector<Transaction>& transactio
     for(auto it : fpitems) {
         frequency_by_item[it] = global_supports[it];
     }
-    // cout <<"Periodic-Frequent Items: \n";
-    // for(auto it=frequency_by_item.begin();it!=frequency_by_item.end();it++){
-    //     cout<<it->first<<" : ";
-    //     set<int> temp = global_tid_lists[it->first];
-    //     for(int te:temp){
-    //         cout<<te<<" ";
-    //     }
-    //     cout<<endl;
-    // }
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -286,11 +266,6 @@ FPTree::FPTree(const vector<int> tids,const std::vector<Transaction>& transactio
     for(const auto& pair : items_ordered_by_frequency) {
         items_with_frequency.push_back(pair);
     }
-    // cout << "Ordered By Frequency: ";
-    // for(auto te:items_ordered_by_frequency) {
-    //     cout << te.first << " ";
-    // }
-    // cout << endl;
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -492,18 +467,11 @@ std::set<onlyPattern> parallel_fptree_growth(const FPTree& fptree, const int max
                 }
             }
             
-            // int j=0;
-            // for(auto transaction:conditional_fptree_transactions){
-            //     for(Item it:transaction){
-            //         cout<<it<<" ";
-            //     }
-            //     cout<<" Tids "<<conditional_fptree_tids[j++]<<endl;
-            // }
-            // break;
-            
-            
-            // build the conditional fptree relative to the current item with the transactions just generated
+            double start = 0, end = 0;
+            get_walltime(&start);
             const FPTree conditional_fptree( conditional_fptree_tids, conditional_fptree_transactions, fptree.minimum_support_threshold, fptree.maximum_periodicity, max_threads);
+            get_walltime(&end);
+            TOTAL_TIME_FPTREE += (end - start);
             // call recursively fptree_growth on the conditional fptree (empty fptree: no patterns)
 
             std::set<onlyPattern> conditional_patterns = parallel_fptree_growth( conditional_fptree, max_threads);
@@ -643,16 +611,6 @@ std::set<onlyPattern> fptree_growth(const FPTree& fptree)
                 }
             }
             
-            // int j=0;
-            // for(auto transaction:conditional_fptree_transactions){
-            //     for(Item it:transaction){
-            //         cout<<it<<" ";
-            //     }
-            //     cout<<" Tids "<<conditional_fptree_tids[j++]<<endl;
-            // }
-            // break;
-            
-            
             // build the conditional fptree relative to the current item with the transactions just generated
             const FPTree conditional_fptree( conditional_fptree_tids, conditional_fptree_transactions, fptree.minimum_support_threshold, fptree.maximum_periodicity);
             // call recursively fptree_growth on the conditional fptree (empty fptree: no patterns)
@@ -708,17 +666,6 @@ std::set<onlyPattern> fptree_growth(const FPTree& fptree)
     }
 }
 
-void get_walltime_(double* wcTime) 
-{
-	struct timeval tp;
-	gettimeofday(&tp, NULL);
-	*wcTime = (double)(tp.tv_sec + tp.tv_usec/1000000.0);
-}
-
-void get_walltime(double* wcTime) 
-{
-	get_walltime_(wcTime);
-}
 
 int main(int argc, char* argv[]){
 
@@ -774,12 +721,13 @@ int main(int argc, char* argv[]){
     cout << "available threads: " << omp_get_max_threads() << endl;
     ///////////////////////////////////////////////////////////////////////////////////////////////////////
 	//serial 
-	double start, end, time;
+	double start, end, initial_fptree_time, time;
 	double ts = 0;
     int pfpattern_serial = 0;
     if(flag == 1)
     {
 	    for(int i = 0; i < max_runs_serial; i++) {
+            TOTAL_TIME_FPTREE = 0;
 		    get_walltime(&start);
     	    ////////////////////////////////////////////////////////////
 		    const FPTree fptree{ tids, transactions, min_sup, max_per };
@@ -803,29 +751,44 @@ int main(int argc, char* argv[]){
     vector<double> sus;
     vector<double> efs;
 	for(int p = start_thread; p <= max_threads; p = p + 1) {
-		double tp = 0;
+		double tp = 0, tp_fpTc = 0, tp_Tm = 0;
 		for(int i = 0; i < max_runs_parallel; i++) {
+            //////////////////////////////////////////////////////////////////////////////////////////////
 			get_walltime(&start);
-			////////////////////////////////////////////////////////////
 			const FPTree parallelfptree{ tids, transactions, min_sup, max_per, p};
+            get_walltime(&end);
+            //////////////////////////////////////////////////////////////////////////////////////////////
+            
+            initial_fptree_time = (end - start);
+            start = 0;
+            end = 0;
+            TOTAL_TIME_FPTREE = 0;
+
+            /////////////////////////////////////////////////////////////////////////////////////////////
+            get_walltime(&start);
             const std::set<onlyPattern> patterns = parallel_fptree_growth( parallelfptree, p);
-			////////////////////////////////////////////////////////////
 			get_walltime(&end);
-			time = end - start;
-			tp += time;
+            //////////////////////////////////////////////////////////////////////////////////////////////
+            time = (end - start) + initial_fptree_time;
+			
+            tp = tp + time;
+            tp_fpTc = tp_fpTc + TOTAL_TIME_FPTREE + initial_fptree_time;
+
             if(pfpattern_serial != patterns.size()) {
                 cout << "#PFPs mismatch!!";
                 return 0;
             }
 		}
 		tp = tp / (double)max_runs_parallel;
+        tp_fpTc = tp_fpTc / (double)max_runs_parallel; //fptree constructor total-time
+        tp_Tm = tp - tp_fpTc; //mining time minus fptree constructor-time 
 		double spdup = ts / tp;
         double eff = spdup / (double)p;
         thds.push_back(p);
         tps.push_back(tp);
         sus.push_back(spdup);
         efs.push_back(eff);
-        printf("[%3.6lf, %2d, %3.6lf, %3.6lf, %3.6lf]\n", ts, p, tp, spdup, eff); 
+        printf("[%3.6lf, %2d, %3.6lf, %3.6lf, %3.6lf, %3.6lf, %3.6lf]\n", ts, p, tp, tp_fpTc, tp_Tm, spdup, eff); 
 	}
     cout << "#pfps: " << pfpattern_serial << endl << "Threads=[";
     for(int i = 0; i < thds.size(); i++) {
