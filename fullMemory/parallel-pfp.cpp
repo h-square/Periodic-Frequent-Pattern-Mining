@@ -1,9 +1,11 @@
 #include <iostream>
+#include <cassert>
 #include <string>
 #include <set>
 #include <vector>
 #include <map>
 #include <algorithm>
+#include <chrono>
 #include <utility>
 #include <fstream>
 #include <sstream>
@@ -25,6 +27,7 @@ PFTree::PFTree(const int minimum_support_threshold, const int maximum_periodicit
 {
 }
 
+// parallel
 PFTree::PFTree(const vector<int> tids, const vector<Transaction>& transactions, const int minimum_support_threshold, const int maximum_periodicity, const int max_threads) :
     root( make_shared<PFNode>( Item{}, nullptr ) ), header_table(), minimum_support_threshold( minimum_support_threshold ), maximum_periodicity(maximum_periodicity)
 {
@@ -66,7 +69,7 @@ PFTree::PFTree(const vector<int> tids, const vector<Transaction>& transactions, 
     #pragma omp parallel default(shared) private(i)
     {
         int thread_id = omp_get_thread_num();
-        #pragma omp for schedule(static)
+        #pragma omp for schedule(static,1) collapse(1)
         for(i=0; i<all_items_list.size(); i++) {
             int global_support = 0;
             set<int> global_tid_list;
@@ -94,7 +97,7 @@ PFTree::PFTree(const vector<int> tids, const vector<Transaction>& transactions, 
     i=0;
     #pragma omp parallel default(shared) private(i)
     {
-        #pragma omp for schedule(dynamic)
+        #pragma omp for schedule(dynamic,1)
         for(i=0; i<all_frequent_items_list.size(); i++) {
             int periodicity = -1;
             int lasttid = 0;
@@ -131,11 +134,12 @@ PFTree::PFTree(const vector<int> tids, const vector<Transaction>& transactions, 
         pfitems_by_frequency.push_back(pair);
     }
 
-    cout<<"Periodic Frequent Items: ";
-    for(int t=0; t<pfitems_by_frequency.size(); t++) {
-        cout<<pfitems_by_frequency[t].first<<" ";
-    }
-    cout<<endl;
+    // cout<<"Number of periodic frequent items: "<<pfitems_by_frequency.size()<<endl;
+    // cout<<"Periodic Frequent Items: ";
+    // for(int t=0; t<pfitems_by_frequency.size(); t++) {
+    //     cout<<pfitems_by_frequency[t].first<<" ";
+    // }
+    // cout<<endl;
 
     // Initialize all pf trees
     vector< shared_ptr<PFTree> > pftrees(max_threads, nullptr);
@@ -194,8 +198,8 @@ PFTree::PFTree(const vector<int> tids, const vector<Transaction>& transactions, 
                     }
                 }
             }
-            // if(curr_pfnode != pftrees[thread_id]->root)
-            //     curr_pfnode->tid_list.insert(tids[i]);
+            if(curr_pfnode != pftrees[thread_id]->root)
+                curr_pfnode->tid_list.insert(tids[i]);
         }
     }
 
@@ -248,6 +252,144 @@ PFTree::PFTree(const vector<int> tids, const vector<Transaction>& transactions, 
     }
 }
 
+bool PFTree::empty() const
+{
+    assert( root );
+    return root->children.size() == 0;
+}
+
+bool contains_single_path(const std::shared_ptr<PFNode>& pfnode)
+{
+    assert( pfnode );
+    if ( pfnode->children.size() == 0 ) { return true; }
+    if ( pfnode->children.size() > 1 ) { return false; }
+    return contains_single_path( pfnode->children.front() );
+}
+
+bool contains_single_path(const PFTree& pftree)
+{
+    return pftree.empty() || contains_single_path( pftree.root );
+}
+
+// parallel growth algo
+set<Pattern> parallel_pftree_growth(const PFTree& pftree, const int max_threads) {
+    if(pftree.empty()) {
+        return {};
+    }
+    if(contains_single_path(pftree)) {
+        set<Pattern> single_path_patterns;
+        auto curr_pfnode = pftree.root->children.front();
+        while(curr_pfnode) {
+            const Item& curr_pfnode_item = curr_pfnode->item;
+            const int curr_pfnode_frequency = curr_pfnode->frequency;
+            set<int> curr_pfnode_tids = curr_pfnode->tid_list;
+
+            // add a pattern formed only by the item of the current node
+            Pattern new_pattern {{ curr_pfnode_item }};
+            single_path_patterns.insert(new_pattern);
+            
+            // create a new pattern by adding the item of the current node to each pattern generated until now
+            for ( const Pattern& pattern : single_path_patterns ) {
+                Pattern new_pattern{ pattern };
+                new_pattern.insert( curr_pfnode_item );
+                single_path_patterns.insert( new_pattern );
+            }
+
+            // advance to the next node until the end of the tree
+            assert( curr_pfnode->children.size() <= 1 );
+            if ( curr_pfnode->children.size() == 1 ) { curr_pfnode = curr_pfnode->children.front(); }
+            else { curr_pfnode = nullptr; }
+        }
+        return single_path_patterns;
+    }
+    else {
+        set<Pattern> multi_path_patterns;
+        int i=0;
+        #pragma omp parallel default(shared) private(i)
+        {
+            int thread_id = omp_get_thread_num();
+            #pragma omp for schedule(dynamic)
+            for(i=0; i<=pftree.pfitems_by_frequency.size()-1; i++) {
+                const Item& curr_item = pftree.pfitems_by_frequency[i].first;
+                vector<TransformedPrefixPath> conditional_pattern_base;
+                vector<TransformedPrefixPath> partial_conditional_pattern_base[max_threads];
+
+                auto ht = pftree.header_table;
+                auto path_starting_pfnode = ht[curr_item];
+
+                vector<shared_ptr<PFNode>> item_pfnodes;
+                while(path_starting_pfnode){
+                    item_pfnodes.push_back(path_starting_pfnode);
+                    path_starting_pfnode = path_starting_pfnode->node_link;
+                }
+
+                for(int j=0; j<item_pfnodes.size(); j++) {
+                    auto curr_path_starting_pfnode = item_pfnodes[j];
+                    set<int> path_starting_pfnode_tids = curr_path_starting_pfnode->tid_list;
+
+                    auto curr_path_pfnode = curr_path_starting_pfnode->parent.lock();
+                    if(curr_path_pfnode->parent.lock()) {
+                        TransformedPrefixPath transformed_prefix_path{{}, path_starting_pfnode_tids};
+                        while(curr_path_pfnode->parent.lock()) {
+                            transformed_prefix_path.first.push_back(curr_path_pfnode->item);
+                            curr_path_pfnode = curr_path_pfnode->parent.lock();
+                        }
+                        conditional_pattern_base.push_back(transformed_prefix_path);
+                    }
+                }
+
+                // generate the transactions that represent the conditional pattern base
+                vector<Transaction> conditional_pftree_transactions;
+                vector<int> conditional_pftree_tids;
+
+                for ( const TransformedPrefixPath& transformed_prefix_path : conditional_pattern_base ) {
+                    const Transaction& transaction = transformed_prefix_path.first;
+                    set<int> transformed_prefix_path_items_tids = transformed_prefix_path.second;
+
+                    // add the same transaction transformed_prefix_path_items_frequency times
+                    for ( auto it = transformed_prefix_path_items_tids.begin(); it != transformed_prefix_path_items_tids.end(); it++ ) {
+                        conditional_pftree_tids.push_back(*it);
+                        conditional_pftree_transactions.push_back( transaction );
+                    }
+                }
+
+                const PFTree conditional_pftree( conditional_pftree_tids, conditional_pftree_transactions, pftree.minimum_support_threshold, pftree.maximum_periodicity, max_threads);
+
+                set<Pattern> conditional_patterns = parallel_pftree_growth(conditional_pftree, max_threads);
+
+                // construct patterns relative to the current item using both the current item and the conditional patterns
+                set<Pattern> curr_item_patterns;
+
+                // the first pattern is made only by the current item
+                // compute the frequency of this pattern by summing the frequency of the nodes which have the same item (follow the node links)
+                int curr_item_frequency = 0;
+                set<int> curr_item_tids;
+                auto pfnode = ht[curr_item];
+                while ( pfnode ) {
+                    curr_item_frequency += pfnode->frequency;
+                    curr_item_tids.insert(pfnode->tid_list.begin(),pfnode->tid_list.end());
+                    pfnode = pfnode->node_link;
+                }
+                
+                // add the pattern as a result
+                Pattern pattern{ {curr_item} };
+                curr_item_patterns.insert( pattern );
+
+                // the next patterns are generated by adding the current item to each conditional pattern
+                for ( const Pattern& pattern : conditional_patterns ) {
+                    Pattern new_pattern{ pattern };
+                    new_pattern.insert( curr_item );
+                    curr_item_patterns.insert( { new_pattern } );
+                }
+
+                // join the patterns generated by the current item with all the other items of the fptree
+                multi_path_patterns.insert( curr_item_patterns.cbegin(), curr_item_patterns.cend() );
+            }
+        }
+        return multi_path_patterns;
+    }
+}
+
 vector<Transaction> get_transactions(char* dataFile) {
     ifstream fin;
     fin.open(dataFile);
@@ -290,5 +432,14 @@ int main(int argc, char* argv[]) {
         tids.push_back(i);
     }
 
+    auto start = chrono::high_resolution_clock::now();
+
     const PFTree parallelPFTree{ tids, transactions, minSup, maxPer, maxThreads};
+    const set<Pattern> patterns = parallel_pftree_growth( parallelPFTree, maxThreads);
+    
+    auto stop = chrono::high_resolution_clock::now();
+    auto duration = chrono::duration_cast<chrono::seconds>(stop - start);
+    
+    cout<<"Number of periodic frequent patterns: "<<patterns.size()<<endl;
+    cout<<"Time taken(seconds): "<<duration.count()<<endl;
 }
