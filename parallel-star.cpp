@@ -209,12 +209,12 @@ FPTree::FPTree(const vector<int> tids,const std::vector<Transaction>& transactio
                         curr_fpnode = curr_fpnode_new_child;
                     }
                     else {
-                    // the child exist, increment its frequency
-                    auto curr_fpnode_child = *it;
-                    ++curr_fpnode_child->frequency;
+                        // the child exist, increment its frequency
+                        auto curr_fpnode_child = *it;
+                        ++curr_fpnode_child->frequency;
 
-                    // advance to the next node of the current transaction
-                    curr_fpnode = curr_fpnode_child;
+                        // advance to the next node of the current transaction
+                        curr_fpnode = curr_fpnode_child;
                     }
                 }            
             }

@@ -34,6 +34,10 @@ struct PFTree {
     const int maximum_periodicity;
     vector<pair<Item,int>> pfitems_by_frequency;
 
+    // constructor for serial PF-tree 
+    PFTree(const vector<int>, const vector<Transaction>&, const int, const int);
+
+    // constructor for parallel PF-tree 
     PFTree(const vector<int>, const vector<Transaction>&, const int, const int, const int);
     
     PFTree(const int, const int);
