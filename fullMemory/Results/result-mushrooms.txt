@@ -1,3 +1,4 @@
+Changing minSup:
 [201701008@gicshpc1 ~]$ ./parallel-pfp mushrooms.txt 4 27 16
 **************************************************************************
 START <dataset>, <minSup>, <maxPer>, #p
@@ -69,6 +70,84 @@ maxPer: 27%, 2272
 Max. available threads: 16
 Number of parallel periodic frequent patterns: 9065
 Parallel time taken(seconds): 5.586
+**************************************************************************
+END
+**************************************************************************
+
+
+Changing maxPer:
+
+[201701008@gicshpc1 ~]$ ./parallel-pfp mushrooms.txt 3 23 16
+**************************************************************************
+START <dataset>, <minSup>, <maxPer>, #p
+**************************************************************************
+DS Name: mushrooms.txt
+DS length: 8416
+minSup: 3%, 252
+maxPer: 23%, 1935
+Max. available threads: 16
+Number of parallel periodic frequent patterns: 6739
+Parallel time taken(seconds): 4.282
+**************************************************************************
+END
+**************************************************************************
+
+[201701008@gicshpc1 ~]$ ./parallel-pfp mushrooms.txt 3 24 16
+**************************************************************************
+START <dataset>, <minSup>, <maxPer>, #p
+**************************************************************************
+DS Name: mushrooms.txt
+DS length: 8416
+minSup: 3%, 252
+maxPer: 24%, 2019
+Max. available threads: 16
+Number of parallel periodic frequent patterns: 7751
+Parallel time taken(seconds): 4.545
+**************************************************************************
+END
+**************************************************************************
+
+[201701008@gicshpc1 ~]$ ./parallel-pfp mushrooms.txt 3 25 16
+**************************************************************************
+START <dataset>, <minSup>, <maxPer>, #p
+**************************************************************************
+DS Name: mushrooms.txt
+DS length: 8416
+minSup: 3%, 252
+maxPer: 25%, 2104
+Max. available threads: 16
+Number of parallel periodic frequent patterns: 9675
+Parallel time taken(seconds): 4.872
+**************************************************************************
+END
+**************************************************************************
+
+[201701008@gicshpc1 ~]$ ./parallel-pfp mushrooms.txt 3 26 16
+**************************************************************************
+START <dataset>, <minSup>, <maxPer>, #p
+**************************************************************************
+DS Name: mushrooms.txt
+DS length: 8416
+minSup: 3%, 252
+maxPer: 26%, 2188
+Max. available threads: 16
+Number of parallel periodic frequent patterns: 25883
+Parallel time taken(seconds): 8.243
+**************************************************************************
+END
+**************************************************************************
+
+[201701008@gicshpc1 ~]$ ./parallel-pfp mushrooms.txt 3 27 16
+**************************************************************************
+START <dataset>, <minSup>, <maxPer>, #p
+**************************************************************************
+DS Name: mushrooms.txt
+DS length: 8416
+minSup: 3%, 252
+maxPer: 27%, 2272
+Max. available threads: 16
+Number of parallel periodic frequent patterns: 34865
+Parallel time taken(seconds): 10.305
 **************************************************************************
 END
 **************************************************************************

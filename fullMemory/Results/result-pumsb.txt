@@ -1,3 +1,5 @@
+Changing minSup:
+
 [201701008@gicshpc1 ~]$ ./parallel-pfp pumsb.txt 86 0.1 16
 **************************************************************************
 START <dataset>, <minSup>, <maxPer>, #p
@@ -69,6 +71,70 @@ maxPer: 0.1%, 49
 Max. available threads: 16
 Number of parallel periodic frequent patterns: 350
 Parallel time taken(seconds): 19.225
+**************************************************************************
+END
+**************************************************************************
+
+
+
+Changing maxPer:
+
+[201701008@gicshpc1 ~]$ ./parallel-pfp pumsb.txt 86 2 16
+**************************************************************************
+START <dataset>, <minSup>, <maxPer>, #p
+**************************************************************************
+DS Name: pumsb.txt
+DS length: 49046
+minSup: 86%, 42179
+maxPer: 2%, 980
+Max. available threads: 16
+Number of parallel periodic frequent patterns: 13609
+Parallel time taken(seconds): 520.785
+**************************************************************************
+END
+**************************************************************************
+
+[201701008@gicshpc1 ~]$ ./parallel-pfp pumsb.txt 86 4 16
+**************************************************************************
+START <dataset>, <minSup>, <maxPer>, #p
+**************************************************************************
+DS Name: pumsb.txt
+DS length: 49046
+minSup: 86%, 42179
+maxPer: 4%, 1961
+Max. available threads: 16
+Number of parallel periodic frequent patterns: 13609
+Parallel time taken(seconds): 527.115
+**************************************************************************
+END
+**************************************************************************
+
+[201701008@gicshpc1 ~]$ ./parallel-pfp pumsb.txt 86 6 16
+**************************************************************************
+START <dataset>, <minSup>, <maxPer>, #p
+**************************************************************************
+DS Name: pumsb.txt
+DS length: 49046
+minSup: 86%, 42179
+maxPer: 6%, 2942
+Max. available threads: 16
+Number of parallel periodic frequent patterns: 13609
+Parallel time taken(seconds): 533.382
+**************************************************************************
+END
+**************************************************************************
+
+[201701008@gicshpc1 ~]$ ./parallel-pfp pumsb.txt 86 8 16
+**************************************************************************
+START <dataset>, <minSup>, <maxPer>, #p
+**************************************************************************
+DS Name: pumsb.txt
+DS length: 49046
+minSup: 86%, 42179
+maxPer: 8%, 3923
+Max. available threads: 16
+Number of parallel periodic frequent patterns: 13609
+Parallel time taken(seconds): 521.463
 **************************************************************************
 END
 **************************************************************************
