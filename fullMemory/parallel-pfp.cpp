@@ -149,8 +149,6 @@ PFTree::PFTree(const vector<int> tids, const std::vector<Transaction>& transacti
 PFTree::PFTree(const vector<int> tids, const vector<Transaction>& transactions, const int minimum_support_threshold, const int maximum_periodicity, const int max_threads) :
     root( make_shared<PFNode>( Item{}, nullptr ) ), header_table(), minimum_support_threshold( minimum_support_threshold ), maximum_periodicity(maximum_periodicity)
 {
-    omp_set_num_threads(max_threads);
-
     // distribute the TDB
     int number_of_transactions = tids.size();
     vector<map<Item,int>> partial_supports(max_threads);
@@ -708,6 +706,7 @@ int main(int argc, char* argv[]) {
     // cout<<"Serial time taken(seconds): "<<serial_duration.count()<<endl;
 
     auto start = chrono::high_resolution_clock::now();
+    omp_set_num_threads(maxThreads);
     const PFTree parallelPFTree{ tids, transactions, minSup, maxPer, maxThreads};
     const set<Pattern> patterns = parallel_pftree_growth( parallelPFTree, maxThreads);
     auto stop = chrono::high_resolution_clock::now();

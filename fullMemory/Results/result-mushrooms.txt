@@ -151,3 +151,146 @@ Parallel time taken(seconds): 10.305
 **************************************************************************
 END
 **************************************************************************
+
+
+Serial
+[201701448@gicshpc2 fullMemory]$ ./serial-pfp ../mushrooms.txt 4 27
+**************************************************************************
+START <dataset>, <minSup>, <maxPer>
+**************************************************************************
+DS Name: ../mushrooms.txt
+DS length: 8416
+minSup: 4%, 336
+maxPer: 27%, 2272
+Max. available threads: 32
+Number of serial periodic frequent patterns: 30051
+Serial time taken(seconds): 33.424
+**************************************************************************
+END
+**************************************************************************
+[201701448@gicshpc2 fullMemory]$ ./serial-pfp ../mushrooms.txt 6 27
+**************************************************************************
+START <dataset>, <minSup>, <maxPer>
+**************************************************************************
+DS Name: ../mushrooms.txt
+DS length: 8416
+minSup: 6%, 504
+maxPer: 27%, 2272
+Max. available threads: 32
+Number of serial periodic frequent patterns: 22129
+Serial time taken(seconds): 30.57
+**************************************************************************
+END
+**************************************************************************
+[201701448@gicshpc2 fullMemory]$ ./serial-pfp ../mushrooms.txt 8 27
+**************************************************************************
+START <dataset>, <minSup>, <maxPer>
+**************************************************************************
+DS Name: ../mushrooms.txt
+DS length: 8416
+minSup: 8%, 673
+maxPer: 27%, 2272
+Max. available threads: 32
+Number of serial periodic frequent patterns: 16899
+Serial time taken(seconds): 27.692
+**************************************************************************
+END
+**************************************************************************
+[201701448@gicshpc2 fullMemory]$ ./serial-pfp ../mushrooms.txt 10 27
+**************************************************************************
+START <dataset>, <minSup>, <maxPer>
+**************************************************************************
+DS Name: ../mushrooms.txt
+DS length: 8416
+minSup: 10%, 841
+maxPer: 27%, 2272
+Max. available threads: 32
+Number of serial periodic frequent patterns: 11795
+Serial time taken(seconds): 24.681
+**************************************************************************
+END
+**************************************************************************
+[201701448@gicshpc2 fullMemory]$ ./serial-pfp ../mushrooms.txt 12 27
+**************************************************************************
+START <dataset>, <minSup>, <maxPer>
+**************************************************************************
+DS Name: ../mushrooms.txt
+DS length: 8416
+minSup: 12%, 1009
+maxPer: 27%, 2272
+Max. available threads: 32
+Number of serial periodic frequent patterns: 9065
+Serial time taken(seconds): 22.024
+**************************************************************************
+END
+**************************************************************************
+[201701448@gicshpc2 fullMemory]$ ./serial-pfp ../mushrooms.txt 3 23
+**************************************************************************
+START <dataset>, <minSup>, <maxPer>
+**************************************************************************
+DS Name: ../mushrooms.txt
+DS length: 8416
+minSup: 3%, 252
+maxPer: 23%, 1935
+Max. available threads: 32
+Number of serial periodic frequent patterns: 6739
+Serial time taken(seconds): 14.549
+**************************************************************************
+END
+**************************************************************************
+[201701448@gicshpc2 fullMemory]$ ./serial-pfp ../mushrooms.txt 3 24
+**************************************************************************
+START <dataset>, <minSup>, <maxPer>
+**************************************************************************
+DS Name: ../mushrooms.txt
+DS length: 8416
+minSup: 3%, 252
+maxPer: 24%, 2019
+Max. available threads: 32
+Number of serial periodic frequent patterns: 7751
+Serial time taken(seconds): 16.261
+**************************************************************************
+END
+**************************************************************************
+[201701448@gicshpc2 fullMemory]$ ./serial-pfp ../mushrooms.txt 3 25
+**************************************************************************
+START <dataset>, <minSup>, <maxPer>
+**************************************************************************
+DS Name: ../mushrooms.txt
+DS length: 8416
+minSup: 3%, 252
+maxPer: 25%, 2104
+Max. available threads: 32
+Number of serial periodic frequent patterns: 9675
+Serial time taken(seconds): 18.369
+**************************************************************************
+END
+**************************************************************************
+[201701448@gicshpc2 fullMemory]$ ./serial-pfp ../mushrooms.txt 3 26
+**************************************************************************
+START <dataset>, <minSup>, <maxPer>
+**************************************************************************
+DS Name: ../mushrooms.txt
+DS length: 8416
+minSup: 3%, 252
+maxPer: 26%, 2188
+Max. available threads: 32
+Number of serial periodic frequent patterns: 25883
+Serial time taken(seconds): 30.042
+**************************************************************************
+END
+**************************************************************************
+[201701448@gicshpc2 fullMemory]$ ./serial-pfp ../mushrooms.txt 3 27
+**************************************************************************
+START <dataset>, <minSup>, <maxPer>
+**************************************************************************
+DS Name: ../mushrooms.txt
+DS length: 8416
+minSup: 3%, 252
+maxPer: 27%, 2272
+Max. available threads: 32
+Number of serial periodic frequent patterns: 34865
+Serial time taken(seconds): 34.98
+**************************************************************************
+END
+**************************************************************************
