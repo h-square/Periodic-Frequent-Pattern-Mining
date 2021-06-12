@@ -1,0 +1,115 @@
+[201701008@gicshpc1 ~]$ ./parallel-pfp chess.txt 76 92 16
+**************************************************************************
+START <dataset>, <minSup>, <maxPer>, #p
+**************************************************************************
+DS Name: chess.txt
+DS length: 3196
+minSup: 76%, 2428
+maxPer: 92%, 2940
+Max. available threads: 16
+Number of parallel periodic frequent patterns: 17625
+Parallel time taken(seconds): 38.132
+**************************************************************************
+END
+**************************************************************************
+[201701008@gicshpc1 ~]$ ./parallel-pfp chess.txt 77 92 16
+**************************************************************************
+START <dataset>, <minSup>, <maxPer>, #p
+**************************************************************************
+DS Name: chess.txt
+DS length: 3196
+minSup: 77%, 2460
+maxPer: 92%, 2940
+Max. available threads: 16
+Number of parallel periodic frequent patterns: 14761
+Parallel time taken(seconds): 35.19
+**************************************************************************
+END
+**************************************************************************
+[201701008@gicshpc1 ~]$ ./parallel-pfp chess.txt 78 92 16
+**************************************************************************
+START <dataset>, <minSup>, <maxPer>, #p
+**************************************************************************
+DS Name: chess.txt
+DS length: 3196
+minSup: 78%, 2492
+maxPer: 92%, 2940
+Max. available threads: 16
+Number of parallel periodic frequent patterns: 12046
+Parallel time taken(seconds): 30.829
+**************************************************************************
+END
+**************************************************************************
+[201701008@gicshpc1 ~]$ ./parallel-pfp chess.txt 80 92 16
+**************************************************************************
+START <dataset>, <minSup>, <maxPer>, #p
+**************************************************************************
+DS Name: chess.txt
+DS length: 3196
+minSup: 80%, 2556
+maxPer: 92%, 2940
+Max. available threads: 16
+Number of parallel periodic frequent patterns: 8282
+Parallel time taken(seconds): 22.033
+**************************************************************************
+END
+**************************************************************************
+
+Serial:
+
+[201701008@gicshpc1 ~]$ ./serial-pfp chess.txt 76 92
+**************************************************************************
+START <dataset>, <minSup>, <maxPer>
+**************************************************************************
+DS Name: chess.txt
+DS length: 3196
+minSup: 76%, 2428
+maxPer: 92%, 2940
+Max. available threads: 16
+Number of serial periodic frequent patterns: 17625
+Serial time taken(seconds): 117.954
+**************************************************************************
+END
+**************************************************************************
+[201701008@gicshpc1 ~]$ ./serial-pfp chess.txt 77 92
+**************************************************************************
+START <dataset>, <minSup>, <maxPer>
+**************************************************************************
+DS Name: chess.txt
+DS length: 3196
+minSup: 77%, 2460
+maxPer: 92%, 2940
+Max. available threads: 16
+Number of serial periodic frequent patterns: 14761
+Serial time taken(seconds): 100.407
+**************************************************************************
+END
+**************************************************************************
+[201701008@gicshpc1 ~]$ ./serial-pfp chess.txt 78 92
+**************************************************************************
+START <dataset>, <minSup>, <maxPer>
+**************************************************************************
+DS Name: chess.txt
+DS length: 3196
+minSup: 78%, 2492
+maxPer: 92%, 2940
+Max. available threads: 16
+Number of serial periodic frequent patterns: 12046
+Serial time taken(seconds): 84.596
+**************************************************************************
+END
+**************************************************************************
+[201701008@gicshpc1 ~]$ ./serial-pfp chess.txt 80 92
+**************************************************************************
+START <dataset>, <minSup>, <maxPer>
+**************************************************************************
+DS Name: chess.txt
+DS length: 3196
+minSup: 80%, 2556
+maxPer: 92%, 2940
+Max. available threads: 16
+Number of serial periodic frequent patterns: 8282
+Serial time taken(seconds): 60.56
+**************************************************************************
+END
+**************************************************************************
