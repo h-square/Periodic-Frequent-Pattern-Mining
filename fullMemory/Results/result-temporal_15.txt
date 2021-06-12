@@ -1,0 +1,121 @@
+Parallel
+changing maxPer
+[201701008@gicshpc1 ~]$ ./parallel-pfp Temporal_15.txt 15 6 16
+**************************************************************************
+START <dataset>, <minSup>, <maxPer>, #p
+**************************************************************************
+DS Name: Temporal_15.txt
+DS length: 5087
+minSup: 15%, 763
+maxPer: 6%, 305
+Max. available threads: 16
+Number of parallel periodic frequent patterns: 7233
+Parallel time taken(seconds): 20.223
+**************************************************************************
+END
+**************************************************************************
+
+[201701008@gicshpc1 ~]$ ./parallel-pfp Temporal_15.txt 15 8 16
+**************************************************************************
+START <dataset>, <minSup>, <maxPer>, #p
+**************************************************************************
+DS Name: Temporal_15.txt
+DS length: 5087
+minSup: 15%, 763
+maxPer: 8%, 406
+Max. available threads: 16
+Number of parallel periodic frequent patterns: 12785
+Parallel time taken(seconds): 29.257
+**************************************************************************
+END
+**************************************************************************
+
+[201701008@gicshpc1 ~]$ ./parallel-pfp Temporal_15.txt 15 8.8 16
+**************************************************************************
+START <dataset>, <minSup>, <maxPer>, #p
+**************************************************************************
+DS Name: Temporal_15.txt
+DS length: 5087
+minSup: 15%, 763
+maxPer: 8.8%, 447
+Max. available threads: 16
+Number of parallel periodic frequent patterns: 31178
+Parallel time taken(seconds): 42.276
+**************************************************************************
+END
+**************************************************************************
+
+[201701008@gicshpc1 ~]$ ./parallel-pfp Temporal_15.txt 15 10 16
+**************************************************************************
+START <dataset>, <minSup>, <maxPer>, #p
+**************************************************************************
+DS Name: Temporal_15.txt
+DS length: 5087
+minSup: 15%, 763
+maxPer: 10%, 508
+Max. available threads: 16
+Number of parallel periodic frequent patterns: 39322
+Parallel time taken(seconds): 49.02
+**************************************************************************
+END
+**************************************************************************
+
+
+
+Serial
+[201701008@gicshpc1 ~]$ ./serial-pfp Temporal_15.txt 15 6
+**************************************************************************
+START <dataset>, <minSup>, <maxPer>
+**************************************************************************
+DS Name: Temporal_15.txt
+DS length: 5087
+minSup: 15%, 763
+maxPer: 6%, 305
+Max. available threads: 16
+Number of serial periodic frequent patterns: 7233
+Serial time taken(seconds): 186.661
+**************************************************************************
+END
+**************************************************************************
+[201701008@gicshpc1 ~]$ ./serial-pfp Temporal_15.txt 15 8
+**************************************************************************
+START <dataset>, <minSup>, <maxPer>
+**************************************************************************
+DS Name: Temporal_15.txt
+DS length: 5087
+minSup: 15%, 763
+maxPer: 8%, 406
+Max. available threads: 16
+Number of serial periodic frequent patterns: 12785
+Serial time taken(seconds): 270.478
+**************************************************************************
+END
+**************************************************************************
+[201701008@gicshpc1 ~]$ ./serial-pfp Temporal_15.txt 15 8.8
+**************************************************************************
+START <dataset>, <minSup>, <maxPer>
+**************************************************************************
+DS Name: Temporal_15.txt
+DS length: 5087
+minSup: 15%, 763
+maxPer: 8.8%, 447
+Max. available threads: 16
+Number of serial periodic frequent patterns: 31178
+Serial time taken(seconds): 380.876
+**************************************************************************
+END
+**************************************************************************
+[201701008@gicshpc1 ~]$ ./serial-pfp Temporal_15.txt 15 10
+**************************************************************************
+START <dataset>, <minSup>, <maxPer>
+**************************************************************************
+DS Name: Temporal_15.txt
+DS length: 5087
+minSup: 15%, 763
+maxPer: 10%, 508
+Max. available threads: 16
+Number of serial periodic frequent patterns: 39322
+Serial time taken(seconds): 446.012
+**************************************************************************
+END
+**************************************************************************
